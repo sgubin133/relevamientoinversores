@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SolarCheck Pro - Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            touch-action: manipulation; /* Evita zoom accidental al tocar botones */
+        }
+        #reader video {
+            border-radius: 1rem;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <!-- Header Optimizado -->
+    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-bold">SolarCheck Pro</h1>
+                <p class="text-[10px] opacity-80 uppercase tracking-wider">Relevamiento de Campo</p>
+            </div>
+            <div class="text-right">
+                <span id="record-count" class="bg-blue-700 px-3 py-1 rounded-full text-xs font-bold">0 Registros</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-4">
+        
+        <!-- Tarjeta de Entrada -->
+        <section class="bg-white rounded-3xl shadow-sm p-5 border border-slate-200">
+            <div class="space-y-4">
+                <!-- ID Inversor con Autocapitalización -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 ml-1">ID DEL INVERSOR</label>
+                    <input type="text" id="inv-id" placeholder="Ej: INV-42" autocomplete="off"
+                        class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-lg">
+                </div>
+
+                <!-- Scanner Section Mejorado -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 ml-1">NÚMERO DE SERIE</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="inv-serial" placeholder="Escanear QR..." readonly
+                            class="flex-1 p-4 bg-slate-100 border border-slate-200 rounded-2xl text-slate-600 font-mono text-sm">
+                        <button onclick="toggleScanner()" id="btn-scan" 
+                            class="bg-blue-600 text-white p-4 rounded-2xl shadow-lg active:bg-blue-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Contenedor del Escáner -->
+                    <div id="reader-container" class="hidden mt-3">
+                        <div id="reader" class="overflow-hidden rounded-2xl bg-black"></div>
+                        <button onclick="stopScanner()" class="w-full mt-2 py-2 text-red-500 text-sm font-bold">Cancelar Escaneo</button>
+                    </div>
+                </div>
+
+                <!-- Ubicación Automática -->
+                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div id="gps-status" class="h-2 w-2 rounded-full bg-red-400"></div>
+                        <span id="inv-loc-text" class="text-xs text-slate-500 italic truncate max-w-[180px]">Sin ubicación</span>
+                    </div>
+                    <button onclick="getLocation()" class="text-blue-600 p-2">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Estado -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 ml-1">ESTADO ACTUAL</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="setStatus('Operativo')" class="status-btn border-2 border-transparent p-3 rounded-xl bg-green-50 text-green-700 text-sm font-bold flex items-center justify-center gap-2" id="btn-op">
+                            <span>✅</span> Operativo
+                        </button>
+                        <button onclick="setStatus('Falla')" class="status-btn border-2 border-transparent p-3 rounded-xl bg-red-50 text-red-700 text-sm font-bold flex items-center justify-center gap-2" id="btn-fa">
+                            <span>❌</span> Falla
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="saveRecord()" class="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl shadow-xl active:scale-95 transition-all text-lg">
+                    REGISTRAR EQUIPO
+                </button>
+            </div>
+        </section>
+
+        <!-- Historial Reducido -->
+        <section class="pb-10">
+            <div class="flex justify-between items-center px-1 mb-3">
+                <h2 class="font-bold text-slate-800">Últimos Equipos</h2>
+                <button onclick="exportToCSV()" class="text-blue-600 text-xs font-bold bg-blue-50 px-3 py-1 rounded-full">CSV EXCEL</button>
+            </div>
+            <div id="records-list" class="space-y-3">
+                <!-- Dinámico -->
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let records = [];
+        let html5QrCode;
+        let selectedStatus = 'Operativo';
+        let currentCoords = "";
+
+        window.onload = () => {
+            const saved = localStorage.getItem('solar_records_v2');
+            if (saved) {
+                records = JSON.parse(saved);
+                renderRecords();
+            }
+            getLocation();
+            setStatus('Operativo');
+        };
+
+        function setStatus(status) {
+            selectedStatus = status;
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('border-blue-500', 'ring-2', 'ring-blue-200'));
+            if(status === 'Operativo') document.getElementById('btn-op').classList.add('border-blue-500');
+            else document.getElementById('btn-fa').classList.add('border-blue-500');
+        }
+
+        function getLocation() {
+            const text = document.getElementById('inv-loc-text');
+            const dot = document.getElementById('gps-status');
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        currentCoords = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+                        text.innerText = currentCoords;
+                        dot.classList.replace('bg-red-400', 'bg-green-500');
+                    },
+                    () => { 
+                        text.innerText = "Error GPS"; 
+                        dot.classList.replace('bg-green-500', 'bg-red-400');
+                    },
+                    { enableHighAccuracy: true }
+                );
+            }
+        }
+
+        function toggleScanner() {
+            const container = document.getElementById('reader-container');
+            container.classList.remove('hidden');
+            
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, (text) => {
+                document.getElementById('inv-serial').value = text;
+                stopScanner();
+                vibrateDevice(100);
+            }).catch(err => alert("Error cámara: " + err));
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader-container').classList.add('hidden');
+                });
+            }
+        }
+
+        function vibrateDevice(ms) {
+            if (navigator.vibrate) navigator.vibrate(ms);
+        }
+
+        function saveRecord() {
+            const id = document.getElementById('inv-id').value.trim();
+            const serial = document.getElementById('inv-serial').value;
+
+            if (!id || !serial) {
+                alert("Completa el ID y escanea el QR.");
+                return;
+            }
+
+            const newRecord = {
+                id, serial, 
+                loc: currentCoords || "S/D", 
+                status: selectedStatus,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            records.unshift(newRecord);
+            localStorage.setItem('solar_records_v2', JSON.stringify(records));
+            
+            // Feedback y limpieza
+            vibrateDevice([50, 50, 50]);
+            document.getElementById('inv-id').value = '';
+            document.getElementById('inv-serial').value = '';
+            renderRecords();
+        }
+
+        function renderRecords() {
+            const list = document.getElementById('records-list');
+            document.getElementById('record-count').innerText = `${records.length} Registros`;
+
+            list.innerHTML = records.map(r => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-slate-400">${r.timestamp}</p>
+                        <h3 class="font-bold text-slate-800">${r.id}</h3>
+                        <p class="text-[10px] font-mono text-slate-500">${r.serial}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold ${r.status === 'Operativo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${r.status.toUpperCase()}
+                        </span>
+                        <p class="text-[9px] text-slate-400 mt-1">${r.loc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportToCSV() {
+            if (records.length === 0) return;
+            let csv = "\uFEFFID,Serie,Ubicacion,Estado,Hora\n";
+            records.forEach(r => csv += `${r.id},${r.serial},${r.loc},${r.status},${r.timestamp}\n`);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `relevamiento_${new Date().toLocaleDateString().replace(/\//g,'-')}.csv`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
